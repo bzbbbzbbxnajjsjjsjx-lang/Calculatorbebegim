@@ -1,0 +1,14 @@
+# Build outputs and Gradle caches
+.gradle/
+.gradle-home/
+build/
+app/build/
+.tmp/
+
+# Android Studio / local SDK config
+.idea/
+local.properties
+
+# Harness runtime and device-specific launcher
+.harness/
+gradlew

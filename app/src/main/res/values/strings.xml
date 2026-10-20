@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Calculator</string>
+    <string name="calculator_display_placeholder">0</string>
+    <string name="calculator_error">Error</string>
+    <string name="calculator_clear">Clear</string>
+    <string name="calculator_equals">=</string>
+    <string name="calculator_divide">÷</string>
+    <string name="calculator_multiply">×</string>
+    <string name="calculator_subtract">−</string>
+    <string name="calculator_add">+</string>
+    <string name="calculator_decimal">.</string>
+    <string name="calculator_percent">%</string>
+    <string name="calculator_sign">±</string>
+    <string name="calculator_backspace">⌫</string>
+    <string name="calculator_description">Material 3 Expressive Calculator</string>
+</resources>

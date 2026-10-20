@@ -1,19 +1,19 @@
 package com.example;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
-class CalculatorTest {
+public class CalculatorTest {
 
     private final Calculator calc = new Calculator();
 
     @Test
-    void addsTwoNumbers() {
+    public void addsTwoNumbers() {
         assertEquals(5, calc.add(2, 3));
     }
 
     @Test
-    void multipliesTwoNumbers() {
+    public void multipliesTwoNumbers() {
         assertEquals(12, calc.multiply(3, 4));
     }
 }

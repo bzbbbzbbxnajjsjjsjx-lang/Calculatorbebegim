@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Calculator</string>
+    <string name="app_name">Hesap Makinesi</string>
     <string name="calculator_display_placeholder">0</string>
-    <string name="calculator_error">Error</string>
-    <string name="calculator_clear">Clear</string>
+    <string name="calculator_error">Hata</string>
+    <string name="calculator_clear">Temizle</string>
     <string name="calculator_equals">=</string>
     <string name="calculator_divide">÷</string>
     <string name="calculator_multiply">×</string>
@@ -12,5 +12,12 @@
     <string name="calculator_percent">%</string>
     <string name="calculator_sign">±</string>
     <string name="calculator_backspace">⌫</string>
-    <string name="calculator_description">Material 3 Expressive Calculator</string>
+    <string name="calculator_description">Material 3 ifadeli hesap makinesi</string>
+    <string name="calculator_tagline">Sayılarla daha kolay.</string>
+    <string name="calculator_ready">Hazır</string>
+    <string name="calculator_theme">Temayı değiştir</string>
+    <string name="calculator_display_description">Ekran: %1$s</string>
+    <string name="calculator_backspace_description">Son basamağı sil</string>
+    <string name="calculator_sign_description">İşareti değiştir</string>
+    <string name="calculator_footer">Netlik, bir adım uzağınızda.</string>
 </resources>

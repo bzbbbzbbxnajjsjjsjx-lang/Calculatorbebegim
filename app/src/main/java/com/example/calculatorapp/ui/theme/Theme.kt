@@ -14,9 +14,12 @@ private val LightColors = lightColorScheme()
 private val DarkColors = darkColorScheme()
 
 @Composable
-fun CalculatorTheme(content: @Composable () -> Unit) {
+fun CalculatorTheme(
+    darkTheme: Boolean? = null,
+    content: @Composable () -> Unit,
+) {
     val context = LocalContext.current
-    val dark = isSystemInDarkTheme()
+    val dark = darkTheme ?: isSystemInDarkTheme()
     val scheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else if (dark) DarkColors else LightColors

@@ -1,17 +1,15 @@
 package com.example;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/**
- * Material 3 Expressive Calculator core logic.
- * Handles arithmetic operations with BigDecimal for precision.
- */
-public final class Calculator {
+/** Material 3 Expressive Calculator core logic. */
+public final class Calculator implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private static final int MAX_INPUT_DIGITS = 15;
 
-    public enum Operation {
-        ADD, SUBTRACT, MULTIPLY, DIVIDE, NONE
-    }
+    public enum Operation { ADD, SUBTRACT, MULTIPLY, DIVIDE, NONE }
 
     private BigDecimal displayValue = BigDecimal.ZERO;
     private BigDecimal previousValue = BigDecimal.ZERO;
@@ -19,120 +17,97 @@ public final class Calculator {
     private boolean justEvaluated = false;
     private boolean hasDecimal = false;
     private boolean hasInput = false;
+    /** Raw editable text. BigDecimal alone cannot preserve 1.20 or 0. */
+    private String input = "0";
 
-    /**
-     * Appends a digit to the display value.
-     */
     public void appendDigit(int digit) {
-        if (justEvaluated) {
-            reset();
-            justEvaluated = false;
-        }
         if (digit < 0 || digit > 9) return;
-
+        if (justEvaluated) reset();
         if (!hasInput) {
-            displayValue = BigDecimal.valueOf(digit);
+            input = Integer.toString(digit);
             hasInput = true;
             hasDecimal = false;
         } else {
-            // Prevent extremely long numbers
-            if (displayValue.toString().replace("-", "").replace(".", "").length() >= 15) {
-                return;
-            }
-            displayValue = new BigDecimal(displayValue.toString() + digit);
+            String candidate = input + digit;
+            if (digitCount(candidate) > MAX_INPUT_DIGITS) return;
+            if ("0".equals(input)) candidate = Integer.toString(digit);
+            else if ("-0".equals(input)) candidate = "-" + digit;
+            input = candidate;
+            hasDecimal = input.indexOf('.') >= 0;
         }
+        syncDisplayValue();
     }
 
-    /**
-     * Appends a decimal point to the display value.
-     */
     public void appendDecimal() {
-        if (justEvaluated) {
-            reset();
-            justEvaluated = false;
+        if (justEvaluated) reset();
+        if (hasDecimal) return;
+        if (!hasInput) {
+            input = "0.";
+            hasInput = true;
+        } else {
+            input += ".";
         }
-        if (!hasDecimal) {
-            if (!hasInput) {
-                displayValue = BigDecimal.ZERO;
-                hasInput = true;
-            }
-            displayValue = new BigDecimal(displayValue.toString() + ".");
-            hasDecimal = true;
-        }
+        hasDecimal = true;
+        syncDisplayValue();
     }
 
-    /**
-     * Toggles the sign of the display value.
-     */
     public void toggleSign() {
-        displayValue = displayValue.negate();
+        if (justEvaluated) justEvaluated = false;
+        if (!hasInput) return;
+        if (input.startsWith("-")) input = input.substring(1);
+        else input = "-" + input;
+        syncDisplayValue();
     }
 
-    /**
-     * Applies a percentage operation to the display value.
-     */
     public void applyPercent() {
-        displayValue = displayValue.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+        BigDecimal value = currentInputValue();
+        input = value.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
+        hasInput = true;
+        hasDecimal = input.indexOf('.') >= 0;
+        justEvaluated = false;
+        syncDisplayValue();
     }
 
-    /**
-     * Sets the current operation for the next calculation.
-     */
     public void setOperation(Operation op) {
-        if (currentOperation != Operation.NONE && hasInput && !justEvaluated) {
-            compute();
-        }
-        previousValue = displayValue;
+        if (op == null) return;
+        if (currentOperation != Operation.NONE && hasInput && !justEvaluated) compute();
+        previousValue = currentInputValue();
         currentOperation = op;
         justEvaluated = false;
         hasInput = false;
         hasDecimal = false;
+        input = "0";
+        displayValue = previousValue;
     }
 
-    /**
-     * Computes the result of the current operation.
-     */
     public void compute() {
         if (currentOperation == Operation.NONE || !hasInput) return;
-
+        BigDecimal value = currentInputValue();
         BigDecimal result;
         switch (currentOperation) {
-            case ADD:
-                result = previousValue.add(displayValue);
-                break;
-            case SUBTRACT:
-                result = previousValue.subtract(displayValue);
-                break;
-            case MULTIPLY:
-                result = previousValue.multiply(displayValue);
-                break;
+            case ADD: result = previousValue.add(value); break;
+            case SUBTRACT: result = previousValue.subtract(value); break;
+            case MULTIPLY: result = previousValue.multiply(value); break;
             case DIVIDE:
-                if (displayValue.compareTo(BigDecimal.ZERO) == 0) {
+                if (value.compareTo(BigDecimal.ZERO) == 0) {
                     throw new ArithmeticException("Division by zero");
                 }
-                result = previousValue.divide(displayValue, 10, RoundingMode.HALF_UP);
+                result = previousValue.divide(value, 10, RoundingMode.HALF_UP);
                 break;
-            default:
-                return;
+            default: return;
         }
-
-        // Round to 10 decimal places to avoid floating point artifacts
         result = result.setScale(10, RoundingMode.HALF_UP).stripTrailingZeros();
-
         displayValue = result;
         previousValue = result;
+        input = result.toPlainString();
+        hasInput = true;
+        hasDecimal = input.indexOf('.') >= 0;
         currentOperation = Operation.NONE;
         justEvaluated = true;
-        hasInput = true;
-        hasDecimal = result.toString().contains(".");
     }
 
-    /**
-     * Clears all state.
-     */
-    public void clear() {
-        reset();
-    }
+    public void clear() { reset(); }
 
     private void reset() {
         displayValue = BigDecimal.ZERO;
@@ -141,74 +116,56 @@ public final class Calculator {
         justEvaluated = false;
         hasDecimal = false;
         hasInput = false;
+        input = "0";
     }
 
-    /**
-     * Deletes the last digit (backspace).
-     */
     public void backspace() {
-        if (justEvaluated) {
-            reset();
-            return;
-        }
-        String str = displayValue.toString();
-        if (str.length() <= 1 || (str.length() == 2 && str.startsWith("-"))) {
-            displayValue = BigDecimal.ZERO;
+        if (justEvaluated) { reset(); return; }
+        if (!hasInput) return;
+        if (input.length() <= 1 || "-".equals(input)) {
+            input = "0";
             hasInput = false;
-            hasDecimal = false;
-            return;
-        }
-        if (str.endsWith(".")) {
-            str = str.substring(0, str.length() - 2);
             hasDecimal = false;
         } else {
-            str = str.substring(0, str.length() - 1);
-        }
-        displayValue = new BigDecimal(str);
-        if (displayValue.compareTo(BigDecimal.ZERO) == 0 && !str.contains(".")) {
-            hasInput = false;
-        }
-    }
-
-    /**
-     * Formats the display value for display.
-     */
-    public String getDisplayText() {
-        String text = displayValue.toPlainString();
-        // Remove trailing zeros after decimal point
-        if (text.contains(".")) {
-            text = text.replaceAll("0*$", "");
-            if (text.endsWith(".")) {
-                text = text.substring(0, text.length() - 1);
+            input = input.substring(0, input.length() - 1);
+            if ("-".equals(input)) {
+                input = "0";
+                hasInput = false;
+                hasDecimal = false;
+            } else {
+                hasDecimal = input.indexOf('.') >= 0;
             }
         }
-        // Limit display length
-        if (text.length() > 15) {
-            text = String.format("%.6e", displayValue.doubleValue());
+        syncDisplayValue();
+    }
+
+    public String getDisplayText() {
+        String text = hasInput ? input : displayValue.toPlainString();
+        if (text.isEmpty() || "-".equals(text)) return "0";
+        if (text.length() > 15 && !text.endsWith(".")) {
+            return String.format(java.util.Locale.US, "%.6e", currentInputValue().doubleValue());
         }
-        return text.isEmpty() ? "0" : text;
+        return text;
     }
 
-    /**
-     * Returns the current operation for UI display.
-     */
-    public Operation getCurrentOperation() {
-        return currentOperation;
+    public Operation getCurrentOperation() { return currentOperation; }
+    public boolean hasInput() { return hasInput; }
+    public int add(int a, int b) { return a + b; }
+    public int multiply(int a, int b) { return a * b; }
+
+    private BigDecimal currentInputValue() {
+        return hasInput ? new BigDecimal(input) : displayValue;
     }
 
-    /**
-     * Returns true if the calculator has been used (has input).
-     */
-    public boolean hasInput() {
-        return hasInput;
+    private void syncDisplayValue() {
+        displayValue = currentInputValue();
     }
 
-    // Legacy methods for backward compatibility
-    public int add(int a, int b) {
-        return a + b;
-    }
-
-    public int multiply(int a, int b) {
-        return a * b;
+    private static int digitCount(String value) {
+        int count = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isDigit(value.charAt(i))) count++;
+        }
+        return count;
     }
 }

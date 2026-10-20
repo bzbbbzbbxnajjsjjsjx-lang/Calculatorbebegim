@@ -8,15 +8,38 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -24,172 +47,145 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.Calculator
+import androidx.lifecycle.ViewModelProvider
 import com.example.Calculator.Operation
 import com.example.calculatorapp.ui.theme.CalculatorTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { CalculatorTheme { CalculatorScreen() } }
+        val viewModel = ViewModelProvider(this)[CalculatorViewModel::class.java]
+        setContent {
+            val state by viewModel.uiState.collectAsState()
+            CalculatorTheme(darkTheme = state.isDarkTheme) {
+                val haptics = LocalHapticFeedback.current
+                val systemDark = isSystemInDarkTheme()
+                LaunchedEffect(state.hapticTick) {
+                    if (state.hapticTick != 0L) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+                CalculatorScreen(
+                    state = state,
+                    onDigitClick = viewModel::onDigitClick,
+                    onDecimalClick = viewModel::onDecimalClick,
+                    onSignClick = viewModel::onSignClick,
+                    onPercentClick = viewModel::onPercentClick,
+                    onOperationClick = viewModel::onOperationClick,
+                    onEqualsClick = viewModel::onEqualsClick,
+                    onClearClick = viewModel::onClearClick,
+                    onBackspaceClick = viewModel::onBackspaceClick,
+                    onThemeClick = { viewModel.toggleTheme(systemDark) },
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun CalculatorScreen(modifier: Modifier = Modifier) {
-    val calculator = remember { Calculator() }
-    var display by remember { mutableStateOf("0") }
-    var expression by remember { mutableStateOf("Ready when you are") }
-    var isError by remember { mutableStateOf(false) }
-    val haptics = LocalHapticFeedback.current
+fun CalculatorScreen(
+    state: CalculatorViewModel.CalculatorUiState = CalculatorViewModel.CalculatorUiState(),
+    onDigitClick: (Int) -> Unit = {},
+    onDecimalClick: () -> Unit = {},
+    onSignClick: () -> Unit = {},
+    onPercentClick: () -> Unit = {},
+    onOperationClick: (Operation) -> Unit = {},
+    onEqualsClick: () -> Unit = {},
+    onClearClick: () -> Unit = {},
+    onBackspaceClick: () -> Unit = {},
+    onThemeClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.colorScheme
-
-    fun update() {
-        display = calculator.displayText
-        expression = when (calculator.currentOperation) {
-            Operation.ADD -> "${calculator.displayText}  +"
-            Operation.SUBTRACT -> "${calculator.displayText}  −"
-            Operation.MULTIPLY -> "${calculator.displayText}  ×"
-            Operation.DIVIDE -> "${calculator.displayText}  ÷"
-            Operation.NONE -> "Your result"
-        }
-    }
-    fun perform(action: () -> Unit) {
-        try {
-            action()
-            isError = false
-            update()
-        } catch (_: ArithmeticException) {
-            display = "Cannot divide by zero"
-            expression = "Check the operation"
-            isError = true
-            calculator.clear()
-        } catch (_: Exception) {
-            display = "Error"
-            expression = "Try again"
-            isError = true
-            calculator.clear()
-        }
-        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-    }
-
+    val themeDescription = stringResource(R.string.calculator_theme)
+    val backspaceDescription = stringResource(R.string.calculator_backspace_description)
+    val signDescription = stringResource(R.string.calculator_sign_description)
     val rows = listOf(
         listOf("AC", "⌫", "%", "÷"),
         listOf("7", "8", "9", "×"),
         listOf("4", "5", "6", "−"),
         listOf("1", "2", "3", "+"),
-        listOf("±", "0", ".", "=")
+        listOf("±", "0", ".", "="),
     )
-    Column(
+    BoxWithConstraints(
         modifier = modifier.fillMaxSize().background(colors.background)
             .statusBarsPadding().navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("NUMI", style = MaterialTheme.typography.labelLarge, color = colors.primary,
-                    fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp)
-                Text("Numbers, with feeling.", style = MaterialTheme.typography.titleMedium,
-                    color = colors.onSurfaceVariant, fontWeight = FontWeight.Medium)
-            }
-            Surface(shape = CircleShape, color = colors.tertiaryContainer) {
-                Text("✳", modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                    color = colors.onTertiaryContainer, style = MaterialTheme.typography.titleLarge)
-            }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = true).heightIn(min = 150.dp),
-            shape = RoundedCornerShape(36.dp),
-            color = colors.surfaceVariant,
-            tonalElevation = 1.dp
+        val compact = maxHeight < 620.dp
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
         ) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.Bottom,
-                horizontalAlignment = Alignment.End
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("NUMI", style = MaterialTheme.typography.labelLarge, color = colors.primary,
+                        fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp)
+                    Text(stringResource(com.example.calculatorapp.R.string.calculator_tagline),
+                        style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
+                }
+                FilledTonalButton(
+                    onClick = onThemeClick,
+                    modifier = Modifier.semantics { contentDescription = themeDescription },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                ) { Text("☼") }
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().heightIn(min = if (compact) 130.dp else 170.dp),
+                shape = RoundedCornerShape(32.dp), color = colors.surfaceVariant, tonalElevation = 1.dp,
             ) {
-                Text(expression, style = MaterialTheme.typography.titleMedium,
-                    color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(14.dp))
-                AnimatedContent(targetState = display, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "display") { value ->
-                    Text(value,
-                        style = MaterialTheme.typography.displayLarge.copy(
+                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.Bottom,
+                    horizontalAlignment = Alignment.End) {
+                    Text(state.previousExpression.ifEmpty { stringResource(R.string.calculator_ready) },
+                        style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(10.dp))
+                    AnimatedContent(state.displayText, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "display") { value ->
+                        val displayDescription = stringResource(R.string.calculator_display_description, value)
+                        Text(value, style = MaterialTheme.typography.displayLarge.copy(
                             fontSize = when { value.length > 12 -> 34.sp; value.length > 8 -> 46.sp; else -> 64.sp },
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = (-2).sp
-                        ),
-                        color = if (isError) colors.error else colors.onSurface,
-                        maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Display $value" }
-                    )
-                }
-            }
-        }
-
-        rows.forEachIndexed { rowIndex, row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { key ->
-                    val isOperator = key in listOf("÷", "×", "−", "+")
-                    val utility = rowIndex == 0 || key == "±" || key == "."
-                    val selected = key == when (calculator.currentOperation) {
-                        Operation.ADD -> "+"
-                        Operation.SUBTRACT -> "−"
-                        Operation.MULTIPLY -> "×"
-                        Operation.DIVIDE -> "÷"
-                        Operation.NONE -> ""
-                    }
-                    val container = when {
-                        key == "=" -> colors.primary
-                        selected -> colors.primaryContainer
-                        isOperator -> colors.tertiaryContainer
-                        utility -> colors.secondaryContainer
-                        else -> colors.surface
-                    }
-                    val content = when {
-                        key == "=" -> colors.onPrimary
-                        selected -> colors.onPrimaryContainer
-                        isOperator -> colors.onTertiaryContainer
-                        utility -> colors.onSecondaryContainer
-                        else -> colors.onSurface
-                    }
-                    FilledTonalButton(
-                        onClick = { perform {
-                            when (key) {
-                                "AC" -> calculator.clear()
-                                "⌫" -> calculator.backspace()
-                                "%" -> calculator.applyPercent()
-                                "±" -> calculator.toggleSign()
-                                "." -> calculator.appendDecimal()
-                                "=" -> calculator.compute()
-                                "÷" -> calculator.setOperation(Operation.DIVIDE)
-                                "×" -> calculator.setOperation(Operation.MULTIPLY)
-                                "−" -> calculator.setOperation(Operation.SUBTRACT)
-                                "+" -> calculator.setOperation(Operation.ADD)
-                                else -> calculator.appendDigit(key.toInt())
-                            }
-                        } },
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).aspectRatio(1.08f)
-                            .semantics { contentDescription = when (key) { "⌫" -> "Backspace"; "±" -> "Change sign"; else -> key } },
-                        shape = RoundedCornerShape(if (key == "=") 28.dp else 22.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = container, contentColor = content),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(key, style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = if (key in listOf("=", "+", "−", "×", "÷")) FontWeight.SemiBold else FontWeight.Medium)
+                            fontWeight = FontWeight.Medium, letterSpacing = (-2).sp),
+                            color = if (state.isError) colors.error else colors.onSurface,
+                            maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
+                            textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth()
+                                .semantics { contentDescription = displayDescription })
                     }
                 }
             }
+            rows.forEachIndexed { rowIndex, row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { key ->
+                        val operation = when (key) {
+                            "÷" -> Operation.DIVIDE; "×" -> Operation.MULTIPLY
+                            "−" -> Operation.SUBTRACT; "+" -> Operation.ADD; else -> Operation.NONE
+                        }
+                        val isOperator = operation != Operation.NONE
+                        val utility = rowIndex == 0 || key == "±" || key == "."
+                        val selected = isOperator && operation == state.currentOperation
+                        val container = when { key == "=" -> colors.primary; selected -> colors.primaryContainer
+                            isOperator -> colors.tertiaryContainer; utility -> colors.secondaryContainer; else -> colors.surface }
+                        val content = when { key == "=" -> colors.onPrimary; selected -> colors.onPrimaryContainer
+                            isOperator -> colors.onTertiaryContainer; utility -> colors.onSecondaryContainer; else -> colors.onSurface }
+                        FilledTonalButton(
+                            onClick = { when (key) {
+                                "AC" -> onClearClick(); "⌫" -> onBackspaceClick(); "%" -> onPercentClick()
+                                "±" -> onSignClick(); "." -> onDecimalClick(); "=" -> onEqualsClick()
+                                "÷", "×", "−", "+" -> onOperationClick(operation)
+                                else -> onDigitClick(key.toInt())
+                            } },
+                            modifier = Modifier.weight(1f).heightIn(min = if (compact) 52.dp else 60.dp)
+                                .aspectRatio(1.08f).semantics { contentDescription = when (key) {
+                                    "⌫" -> backspaceDescription
+                                    "±" -> signDescription
+                                    else -> key
+                                } },
+                            shape = RoundedCornerShape(if (key == "=") 28.dp else 20.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(container, content),
+                            contentPadding = PaddingValues(0.dp),
+                        ) { Text(key, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium) }
+                    }
+                }
+            }
+            Text(stringResource(R.string.calculator_footer), Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
         }
-        Text("A little clarity goes a long way.", modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
-            style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,
-            textAlign = TextAlign.Center)
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-private fun CalculatorPreview() { CalculatorTheme { CalculatorScreen() } }

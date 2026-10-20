@@ -48,7 +48,7 @@ class CalculatorViewModel(private val savedStateHandle: SavedStateHandle) : View
         ),
     )
     val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
-    private var hapticEnabled: Boolean
+    private var hapticEnabledState: Boolean
         get() = savedStateHandle[HAPTIC_KEY] ?: true
         set(value) { savedStateHandle[HAPTIC_KEY] = value }
 
@@ -82,7 +82,7 @@ class CalculatorViewModel(private val savedStateHandle: SavedStateHandle) : View
         _uiState.value = _uiState.value.copy(isDarkTheme = next)
     }
 
-    fun setHapticEnabled(enabled: Boolean) { hapticEnabled = enabled }
+    fun setHapticEnabled(enabled: Boolean) { hapticEnabledState = enabled }
 
     private fun perform(action: () -> Unit) {
         try {
@@ -130,7 +130,7 @@ class CalculatorViewModel(private val savedStateHandle: SavedStateHandle) : View
     }
 
     private fun pulse(duration: Long = 10L) {
-        if (hapticEnabled) {
+        if (hapticEnabledState) {
             _uiState.value = _uiState.value.copy(hapticTick = _uiState.value.hapticTick + duration)
         }
     }
